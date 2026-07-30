@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecture Lens</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <div class="eyebrow">MENTOR CAPTURE TOOL</div>
+        <h1>Lecture Lens</h1>
+      </div>
+      <div class="header-status">
+        <span id="statusDot" class="status-dot"></span>
+        <span id="globalStatus">설정 대기 중</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="setup-grid">
+        <article class="panel step-panel">
+          <div class="step-heading">
+              <span class="step-number">01</span>
+              <div>
+                <h2>강의 창 연결</h2>
+                <p>YouTube가 열린 Chrome 창 또는 Zoom 강의 창을 선택하세요.</p>
+            </div>
+          </div>
+          <div class="inline-row">
+            <button id="sourceButton" class="primary">창 선택</button>
+            <div class="selection-summary">
+              <span class="label">현재 창</span>
+              <strong id="sourceName">선택되지 않음</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel step-panel">
+          <div class="step-heading">
+            <span class="step-number">02</span>
+            <div>
+              <h2>Antigravity 연결</h2>
+              <p>작업 폴더와 강의 코드를 저장할 파일을 지정하세요.</p>
+            </div>
+          </div>
+          <div class="path-row">
+            <button id="workspaceButton" class="secondary">폴더 선택</button>
+            <input id="workspacePath" readonly placeholder="작업 폴더">
+          </div>
+          <div class="path-row">
+            <label for="targetPath">대상 파일</label>
+            <input id="targetPath" value="lecture/main.py" spellcheck="false">
+            <button id="loadFileButton" class="ghost">불러오기</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="workspace-grid">
+        <article class="panel capture-panel">
+          <div class="panel-title-row">
+            <div>
+              <h2>라이브 화면</h2>
+              <p id="captureHint">코드 영역을 드래그한 뒤 청록색 제외선을 줄 번호 오른쪽으로 옮기세요.</p>
+            </div>
+            <div class="capture-actions">
+              <button id="refreshFrameButton" class="ghost" disabled>화면 갱신</button>
+              <button id="resetRegionButton" class="ghost" disabled>영역 초기화</button>
+            </div>
+          </div>
+
+          <div id="previewStage" class="preview-stage empty">
+            <canvas id="previewCanvas"></canvas>
+            <div id="selectionBox" class="selection-box hidden"></div>
+            <div id="gutterMask" class="gutter-mask hidden"></div>
+            <div id="gutterLine" class="gutter-line hidden" title="드래그하여 줄 번호 제외">
+              <span>줄 번호 제외</span>
+            </div>
+            <div id="emptyPreview">
+              <div class="empty-icon">&lt;/&gt;</div>
+              <strong>Chrome 또는 Zoom 강의 창을 연결하세요</strong>
+              <span>강의 창은 다른 앱 뒤에 있어도 되지만 최소화하면 안 됩니다.</span>
+            </div>
+          </div>
+
+          <div class="capture-footer">
+            <button id="captureButton" class="primary wide" disabled>지금 코드 읽기</button>
+            <label class="toggle">
+              <input id="autoCapture" type="checkbox" disabled>
+              <span class="toggle-track"></span>
+              백그라운드 감지
+            </label>
+            <label class="interval-field">
+              간격
+              <select id="captureInterval">
+                <option value="3000">3초</option>
+                <option value="5000" selected>5초</option>
+                <option value="8000">8초</option>
+              </select>
+            </label>
+          </div>
+          <div class="safety-row">
+            <label class="toggle safety-toggle">
+              <input id="safeAutoApply" type="checkbox" disabled>
+              <span class="toggle-track"></span>
+              안전 자동 반영
+            </label>
+            <label class="interval-field">
+              최소 신뢰도
+              <select id="minimumConfidence">
+                <option value="85">85%</option>
+                <option value="90" selected>90%</option>
+                <option value="95">95%</option>
+              </select>
+            </label>
+            <span id="safetyStatus" class="safety-status">검토 후 수동 적용</span>
+          </div>
+          <div id="ocrProgress" class="progress-wrap hidden">
+            <div class="progress-track"><div id="progressBar"></div></div>
+            <span id="progressText">OCR 준비 중</span>
+          </div>
+        </article>
+
+        <article class="panel result-panel">
+          <div class="panel-title-row">
+            <div>
+              <h2>코드 검토</h2>
+              <p>OCR 결과를 확인하고 필요하면 직접 수정하세요.</p>
+            </div>
+            <div id="confidenceBadge" class="confidence neutral">대기</div>
+          </div>
+
+          <div class="tabs">
+            <button class="tab active" data-tab="code">검수 코드</button>
+            <button class="tab" data-tab="raw">OCR 원문</button>
+            <button class="tab" data-tab="diff">변경 비교 <span id="diffCount">0</span></button>
+          </div>
+          <div class="editor-meta">
+            <span id="mergeStatus">대상 파일을 불러오면 기존 줄을 보존합니다.</span>
+            <span class="whitespace-hint"><i></i>공백 표시</span>
+          </div>
+          <div id="codePane" class="tab-pane active">
+            <div id="codeEditor" aria-label="OCR 코드 검수 편집기"></div>
+          </div>
+          <div id="rawPane" class="tab-pane">
+            <pre id="rawOcrView" class="raw-view"><span class="diff-empty">아직 인식된 OCR 원문이 없습니다.</span></pre>
+          </div>
+          <div id="diffPane" class="tab-pane">
+            <pre id="diffView" class="diff-view"><span class="diff-empty">변경 내용이 없습니다.</span></pre>
+          </div>
+
+          <div class="apply-area">
+            <div>
+              <span class="label">저장 대상</span>
+              <strong id="applyTarget">작업 폴더를 선택하세요</strong>
+            </div>
+            <button id="applyButton" class="accent" disabled>Antigravity에 적용</button>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <div id="sourceModal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <div class="panel-title-row">
+          <div>
+            <h2>캡처할 창 선택</h2>
+            <p>유튜브 Chrome 창이나 화면 공유 중인 Zoom 창을 선택하세요.</p>
+          </div>
+          <button id="closeModal" class="icon-button" aria-label="닫기">×</button>
+        </div>
+        <div id="sourceList" class="source-list"></div>
+        <button id="reloadSources" class="secondary">창 목록 새로고침</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="./editor-bundle.js"></script>
+    <script src="./renderer.js"></script>
+  </body>
+</html>

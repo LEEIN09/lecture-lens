@@ -1,0 +1,35 @@
+{
+  "name": "lecture-code-capture",
+  "version": "0.1.0",
+  "private": true,
+  "description": "YouTube live code capture assistant for mentors",
+  "main": "src/main.js",
+  "scripts": {
+    "build:editor": "node scripts/build-editor.js",
+    "prestart": "npm run build:editor",
+    "start": "electron .",
+    "test": "node --test",
+    "check": "npm run build:editor && node --check src/main.js && node --check src/preload.js && node --check src/renderer.js",
+    "smoke:capture": "electron scripts/smoke-capture.js",
+    "smoke:editor": "electron scripts/smoke-editor.js",
+    "smoke:ocr": "node scripts/smoke-ocr.js",
+    "smoke:paddle": "node scripts/smoke-paddle.js"
+  },
+  "dependencies": {
+    "@codemirror/lang-cpp": "^6.0.3",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.11",
+    "@codemirror/lang-java": "^6.0.2",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-python": "^6.2.1",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/kor": "^1.0.0",
+    "codemirror": "^6.0.2",
+    "tesseract.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "electron": "^43.2.0",
+    "esbuild": "^0.28.1"
+  }
+}

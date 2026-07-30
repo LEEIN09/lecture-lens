@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.lecture-capture/
+*.log
+.venv/
+.models/
+.tmp/
+src/editor-bundle.js
+__pycache__/
+*.pyc
