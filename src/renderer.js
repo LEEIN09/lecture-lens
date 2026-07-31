@@ -154,6 +154,7 @@ async function selectSource(source) {
   $("#sourceModal").classList.add("hidden");
   setStatus("강의 창 연결됨", "active");
   await refreshFrame();
+  if (!state.roi) await autoDetectCodeRegion({ quiet: true });
   persistSettings();
   updateControls();
 }
@@ -201,6 +202,157 @@ function drawPreview(dataUrl) {
     image.onerror = reject;
     image.src = dataUrl;
   });
+}
+
+function longestRun(values, predicate) {
+  let best = null;
+  let start = null;
+  for (let index = 0; index <= values.length; index += 1) {
+    if (index < values.length && predicate(values[index], index)) {
+      if (start === null) start = index;
+      continue;
+    }
+    if (start !== null) {
+      const run = { start, end: index, length: index - start };
+      if (!best || run.length > best.length) best = run;
+      start = null;
+    }
+  }
+  return best;
+}
+
+function luminanceAt(data, width, x, y) {
+  const offset = (y * width + x) * 4;
+  return 0.2126 * data[offset] + 0.7152 * data[offset + 1] + 0.0722 * data[offset + 2];
+}
+
+async function detectVsCodeRegion(dataUrl) {
+  const image = await new Promise((resolve, reject) => {
+    const item = new Image();
+    item.onload = () => resolve(item);
+    item.onerror = reject;
+    item.src = dataUrl;
+  });
+  const width = Math.min(320, image.naturalWidth);
+  const height = Math.max(1, Math.round(image.naturalHeight * width / image.naturalWidth));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  context.drawImage(image, 0, 0, width, height);
+  const pixels = context.getImageData(0, 0, width, height).data;
+
+  const columnDarkRatio = Array.from({ length: width }, (_, x) => {
+    let dark = 0;
+    for (let y = 0; y < height; y += 2) {
+      if (luminanceAt(pixels, width, x, y) < 105) dark += 1;
+    }
+    return dark / Math.ceil(height / 2);
+  });
+  const appColumns = longestRun(columnDarkRatio, (ratio) => ratio >= 0.58);
+  if (!appColumns || appColumns.length < width * 0.36) return null;
+
+  const rowDarkRatio = Array.from({ length: height }, (_, y) => {
+    let dark = 0;
+    let samples = 0;
+    for (let x = appColumns.start; x < appColumns.end; x += 2) {
+      if (luminanceAt(pixels, width, x, y) < 105) dark += 1;
+      samples += 1;
+    }
+    return samples ? dark / samples : 0;
+  });
+  const appRows = longestRun(rowDarkRatio, (ratio) => ratio >= 0.68);
+  if (!appRows || appRows.length < height * 0.42) return null;
+
+  const appWidth = appColumns.length;
+  const appHeight = appRows.length;
+  // Terminal dividers normally live near the bottom of the VS Code window.
+  // Starting too high can mistake a long source line or the active-line
+  // highlight for a panel divider and crop valid code below it.
+  const searchStart = Math.round(appRows.start + appHeight * 0.7);
+  const searchEnd = Math.round(appRows.start + appHeight * 0.91);
+  let panelBoundary = null;
+  let bestEdge = 0;
+  for (let y = Math.max(1, searchStart); y < Math.min(height, searchEnd); y += 1) {
+    let changed = 0;
+    let samples = 0;
+    for (let x = appColumns.start; x < appColumns.end; x += 2) {
+      const difference = Math.abs(
+        luminanceAt(pixels, width, x, y) -
+        luminanceAt(pixels, width, x, y - 1)
+      );
+      if (difference >= 14) changed += 1;
+      samples += 1;
+    }
+    const edge = samples ? changed / samples : 0;
+    if (edge > bestEdge) {
+      bestEdge = edge;
+      panelBoundary = y;
+    }
+  }
+
+  const editorTop = appRows.start + appHeight * 0.125;
+  const boundaryRatio = panelBoundary === null
+    ? 1
+    : (panelBoundary - appRows.start) / appHeight;
+  const hasTerminalBoundary =
+    bestEdge >= 0.28 &&
+    boundaryRatio >= 0.7 &&
+    boundaryRatio <= 0.91;
+  const editorBottom = hasTerminalBoundary
+    ? panelBoundary - appHeight * 0.025
+    : appRows.start + appHeight * 0.94;
+  const editorLeft = appColumns.start + appWidth * 0.065;
+  const editorRight = appColumns.end - appWidth * 0.012;
+  if (editorBottom - editorTop < height * 0.2) return null;
+
+  return {
+    roi: {
+      x: editorLeft / width,
+      y: editorTop / height,
+      width: (editorRight - editorLeft) / width,
+      height: (editorBottom - editorTop) / height
+    },
+    gutterRatio: 0.065,
+    confidence: Math.min(99, Math.round(
+      65 + Math.min(20, appColumns.length / width * 20) + Math.min(14, bestEdge * 40)
+    ))
+  };
+}
+
+async function autoDetectCodeRegion({ quiet = false } = {}) {
+  if (!state.frameDataUrl) {
+    if (!quiet) toast("먼저 강의 창을 연결해 주세요.", true);
+    return false;
+  }
+  setStatus("VS Code 영역 찾는 중", "busy");
+  try {
+    const detected = await detectVsCodeRegion(state.frameDataUrl);
+    if (!detected) {
+      setStatus(state.roi ? "캡처 준비 완료" : "코드 영역을 지정하세요", state.roi ? "active" : "busy");
+      if (!quiet) toast("VS Code 편집기 영역을 찾지 못했습니다. 직접 드래그해 주세요.", true);
+      return false;
+    }
+    state.roi = detected.roi;
+    state.gutterRatio = detected.gutterRatio;
+    state.savedRoi = state.roi;
+    state.savedSourceName = state.sourceName;
+    state.savedGutterRatio = state.gutterRatio;
+    state.lastFingerprint = null;
+    state.pendingFingerprint = null;
+    state.layoutBlocked = false;
+    state.badFrameCount = 0;
+    persistSettings();
+    renderSelectionBox();
+    updateControls();
+    setStatus("코드 영역 자동 감지 완료", "active");
+    toast(`VS Code 편집기 영역을 자동으로 찾았습니다. 감지 신뢰도 ${detected.confidence}%`);
+    return true;
+  } catch (error) {
+    setStatus(state.roi ? "캡처 준비 완료" : "코드 영역을 지정하세요", state.roi ? "active" : "busy");
+    if (!quiet) toast(`자동 영역 감지 오류: ${friendlyError(error)}`, true);
+    return false;
+  }
 }
 
 function canvasImageBounds() {
@@ -679,6 +831,7 @@ function updateControls() {
     state.targetPath
   );
   $("#refreshFrameButton").disabled = !state.sourceId;
+  $("#detectRegionButton").disabled = !state.sourceId || !state.frameDataUrl;
   $("#resetRegionButton").disabled = !state.roi;
   $("#applyButton").disabled = !(
     state.workspacePath &&
@@ -721,6 +874,7 @@ $("#workspaceButton").addEventListener("click", chooseWorkspace);
 $("#loadFileButton").addEventListener("click", loadTarget);
 $("#targetPath").addEventListener("input", updateApplyTarget);
 $("#refreshFrameButton").addEventListener("click", refreshFrame);
+$("#detectRegionButton").addEventListener("click", () => autoDetectCodeRegion());
 $("#resetRegionButton").addEventListener("click", () => {
   state.roi = null;
   state.savedRoi = null;
