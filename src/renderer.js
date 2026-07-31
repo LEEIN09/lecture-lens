@@ -5,6 +5,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const SETTINGS_KEY = "lecture-lens.settings.v1";
 const LAYOUT_CHANGE_THRESHOLD = 8;
+const REVIEW_WORKFLOW_ENABLED = false;
 
 const state = {
   sourceId: null,
@@ -76,7 +77,7 @@ function persistSettings() {
     workspacePath: state.workspacePath,
     targetPath: $("#targetPath").value.trim(),
     captureInterval: $("#captureInterval").value,
-    safeAutoApply: $("#safeAutoApply").checked,
+    safeAutoApply: REVIEW_WORKFLOW_ENABLED && $("#safeAutoApply").checked,
     minimumConfidence: $("#minimumConfidence").value
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -99,7 +100,8 @@ function restoreSettings() {
     if (["85", "90", "95"].includes(String(settings.minimumConfidence))) {
       $("#minimumConfidence").value = String(settings.minimumConfidence);
     }
-    $("#safeAutoApply").checked = Boolean(settings.safeAutoApply);
+    $("#safeAutoApply").checked =
+      REVIEW_WORKFLOW_ENABLED && Boolean(settings.safeAutoApply);
     updateApplyTarget();
   } catch {
     localStorage.removeItem(SETTINGS_KEY);
@@ -678,7 +680,8 @@ async function captureAndRecognize({ automatic = false } = {}) {
       setSafetyStatus(codeSafety.reason, "warn");
     }
 
-    if (automatic && $("#safeAutoApply").checked && codeSafety.safe) {
+    if (REVIEW_WORKFLOW_ENABLED &&
+        automatic && $("#safeAutoApply").checked && codeSafety.safe) {
       const applied = await applyCode({ automatic: true });
       setStatus(applied ? "안전 자동 반영 완료" : "자동 반영 보류", applied ? "active" : "error");
     } else {

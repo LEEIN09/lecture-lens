@@ -84,6 +84,7 @@ main { padding: 22px 30px 16px; }
   gap: 16px;
   margin-bottom: 16px;
 }
+.ocr-setup-grid { grid-template-columns: 1fr; }
 
 .workspace-grid {
   display: grid;
@@ -91,6 +92,10 @@ main { padding: 22px 30px 16px; }
   gap: 16px;
   height: calc(100vh - 330px);
   min-height: 430px;
+}
+.ocr-setup-grid + .workspace-grid {
+  height: calc(100vh - 245px);
+  min-height: 520px;
 }
 
 .panel {
@@ -382,6 +387,11 @@ button:active:not(:disabled) { transform: translateY(1px); }
 #codeEditor .cm-editor { height: 100%; }
 .diff-view { overflow: auto; white-space: pre-wrap; }
 .raw-view { overflow: auto; white-space: pre; }
+.ocr-result-pane { padding-top: 14px; }
+.ocr-result-pane .raw-view {
+  font-size: 13px;
+  line-height: 1.65;
+}
 .diff-line { display: block; min-height: 19px; padding: 0 5px; }
 .diff-line.add { color: #a4ecc0; background: rgba(51, 170, 95, .13); }
 .diff-line.remove { color: #ffadb6; background: rgba(213, 63, 79, .13); }

@@ -23,7 +23,7 @@
     </header>
 
     <main>
-      <section class="setup-grid">
+      <section class="setup-grid ocr-setup-grid">
         <article class="panel step-panel">
           <div class="step-heading">
               <span class="step-number">01</span>
@@ -41,7 +41,7 @@
           </div>
         </article>
 
-        <article class="panel step-panel">
+        <article class="panel step-panel legacy-review hidden">
           <div class="step-heading">
             <span class="step-number">02</span>
             <div>
@@ -105,7 +105,7 @@
               </select>
             </label>
           </div>
-          <div class="safety-row">
+          <div class="safety-row legacy-review hidden">
             <label class="toggle safety-toggle">
               <input id="safeAutoApply" type="checkbox" disabled>
               <span class="toggle-track"></span>
@@ -130,37 +130,40 @@
         <article class="panel result-panel">
           <div class="panel-title-row">
             <div>
-              <h2>코드 검토</h2>
-              <p>OCR 결과를 확인하고 필요하면 직접 수정하세요.</p>
+              <h2>OCR 인식 결과</h2>
+              <p>현재 목표는 화면의 코드를 빠르고 정확하게 읽는 것입니다.</p>
             </div>
             <div id="confidenceBadge" class="confidence neutral">대기</div>
           </div>
 
-          <div class="tabs">
-            <button class="tab active" data-tab="code">검수 코드</button>
-            <button class="tab" data-tab="raw">OCR 원문</button>
-            <button class="tab" data-tab="diff">변경 비교 <span id="diffCount">0</span></button>
-          </div>
-          <div class="editor-meta">
-            <span id="mergeStatus">대상 파일을 불러오면 기존 줄을 보존합니다.</span>
-            <span class="whitespace-hint"><i></i>공백 표시</span>
-          </div>
-          <div id="codePane" class="tab-pane active">
-            <div id="codeEditor" aria-label="OCR 코드 검수 편집기"></div>
-          </div>
-          <div id="rawPane" class="tab-pane">
+          <div id="rawPane" class="tab-pane active ocr-result-pane">
             <pre id="rawOcrView" class="raw-view"><span class="diff-empty">아직 인식된 OCR 원문이 없습니다.</span></pre>
           </div>
-          <div id="diffPane" class="tab-pane">
-            <pre id="diffView" class="diff-view"><span class="diff-empty">변경 내용이 없습니다.</span></pre>
-          </div>
 
-          <div class="apply-area">
-            <div>
-              <span class="label">저장 대상</span>
-              <strong id="applyTarget">작업 폴더를 선택하세요</strong>
+          <div class="legacy-review hidden" aria-hidden="true">
+            <div class="tabs">
+              <button class="tab active" data-tab="code">검수 코드</button>
+              <button class="tab" data-tab="raw">OCR 원문</button>
+              <button class="tab" data-tab="diff">변경 비교 <span id="diffCount">0</span></button>
             </div>
-            <button id="applyButton" class="accent" disabled>Antigravity에 적용</button>
+            <div class="editor-meta">
+              <span id="mergeStatus">대상 파일을 불러오면 기존 줄을 보존합니다.</span>
+              <span class="whitespace-hint"><i></i>공백 표시</span>
+            </div>
+            <div id="codePane" class="tab-pane active">
+              <div id="codeEditor" aria-label="OCR 코드 검수 편집기"></div>
+            </div>
+            <div id="diffPane" class="tab-pane">
+              <pre id="diffView" class="diff-view"><span class="diff-empty">변경 내용이 없습니다.</span></pre>
+            </div>
+
+            <div class="apply-area">
+              <div>
+                <span class="label">저장 대상</span>
+                <strong id="applyTarget">작업 폴더를 선택하세요</strong>
+              </div>
+              <button id="applyButton" class="accent" disabled>Antigravity에 적용</button>
+            </div>
           </div>
         </article>
       </section>
